@@ -63,6 +63,9 @@ public class OctreeNode
         };
     }
 
+    /// <summary>
+    /// 八叉树核心，向下递归创建节点
+    /// </summary>
     public void DivideAndAdd(GameObject worldObject)
     {
         OctreeObject octObj = new OctreeObject(worldObject);
