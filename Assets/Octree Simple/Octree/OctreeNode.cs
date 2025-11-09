@@ -65,6 +65,7 @@ public class OctreeNode
 
     /// <summary>
     /// 八叉树核心，向下递归创建节点
+    /// （通传下去，通过Intersects进行包围盒的交叉，来判断是否需要继续创建）
     /// </summary>
     public void DivideAndAdd(GameObject worldObject)
     {
