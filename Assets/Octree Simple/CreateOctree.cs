@@ -72,10 +72,10 @@ public class CreateOctree : MonoBehaviour
             if (obj != null && move != null)
             {
                 int found = octree.FindEmptyLeafNode(octree.rootNode, obj.transform.position);
-                Node graphNode = wayPointGraph.FindNode(found);
-                if (graphNode != null)
+                GraphNode graphGraphNode = wayPointGraph.FindNode(found);
+                if (graphGraphNode != null)
                 {
-                    move.ReStartMove(graphNode.octreeNode, graphNode.octreeNode);
+                    move.ReStartMove(graphGraphNode.octreeNode, graphGraphNode.octreeNode);
                 }
             }
         }

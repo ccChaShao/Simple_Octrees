@@ -17,7 +17,7 @@ public class Move : MonoBehaviour
     // 八叉树导航数据
     private Octree m_Octree;
     private Graph m_Graph;
-    private List<Node> m_AStarPathList = new();
+    private List<GraphNode> m_AStarPathList = new();
     
     public OctreeNode move2Node => m_Move2Node;
 
@@ -84,7 +84,7 @@ public class Move : MonoBehaviour
         return m_AStarPathList.Count;
     }
 
-    private Node GetAstarPathNode(int index)
+    private GraphNode GetAstarPathNode(int index)
     {
         return m_AStarPathList[index];
     }

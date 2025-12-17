@@ -3,8 +3,8 @@ using UnityEngine;
 
 public class Graph
 {
-    public List<Node> nodeList = new();
-    public List<Edge> edgeList = new();
+    public List<GraphNode> nodeList = new();
+    public List<GraphEdge> edgeList = new();
 
     private Ray m_CacheRay = new ();
     private List<Vector3> m_SixDirs = new()
@@ -21,12 +21,12 @@ public class Graph
     {
         if (FindNode(otn.id) == null)
         {
-            Node node = new Node(otn);           // 一个树节点 = 一个路径节点
-            nodeList.Add(node);
+            GraphNode graphNode = new GraphNode(otn);           // 一个树节点 = 一个路径节点
+            nodeList.Add(graphNode);
         }
     }
 
-    public Node FindNode(int otnId)
+    public GraphNode FindNode(int otnId)
     {
         for (int i = 0; i < nodeList.Count; i++)
         {
@@ -46,30 +46,32 @@ public class Graph
             return;
         }
         
-        Node from = FindNode(fromOtn.id);
-        Node to = FindNode(toOtn.id);
+        GraphNode from = FindNode(fromOtn.id);
+        GraphNode to = FindNode(toOtn.id);
         if (from != null && to != null)
         {
-            Edge edge = new(from, to);          // 正向
-            edgeList.Add(edge);
-            from.edgeList.Add(edge);
+            // 正向
+            GraphEdge graphEdge = new(from, to);
+            edgeList.Add(graphEdge);
+            from.edgeList.Add(graphEdge);
             
-            Edge reverseEdge = new(to, from);   // 反向
-            edgeList.Add(reverseEdge);
-            to.edgeList.Add(reverseEdge);
+            // 反向
+            GraphEdge reverseGraphEdge = new(to, from);
+            edgeList.Add(reverseGraphEdge);
+            to.edgeList.Add(reverseGraphEdge);
         }
     }
 
-    public Edge FindEdge(OctreeNode fromOtn, OctreeNode toOtn)
+    public GraphEdge FindEdge(OctreeNode fromOtn, OctreeNode toOtn)
     {
-        Node from = FindNode(fromOtn.id);
-        Node to = FindNode(toOtn.id);
+        GraphNode from = FindNode(fromOtn.id);
+        GraphNode to = FindNode(toOtn.id);
         if (from != null && to != null)
         {
             for (int i = 0; i < from.edgeList.Count; i++)
             {
                 var element = from.edgeList[i];
-                if (element.endNode.octreeNode.id == toOtn.id)
+                if (element.EndGraphNode.octreeNode.id == toOtn.id)
                 {
                     return element;
                 }
@@ -92,13 +94,16 @@ public class Graph
         for (int i = 0; i < edgeList.Count; i++)
         {
             Debug.DrawLine(
-                edgeList[i].startNode.octreeNode.bounds.center,
-                edgeList[i].endNode.octreeNode.bounds.center,
+                edgeList[i].StartGraphNode.octreeNode.bounds.center,
+                edgeList[i].EndGraphNode.octreeNode.bounds.center,
                 Color.red
             );
         }
     }
 
+    /// <summary>
+    /// 连接所有相邻节点
+    /// </summary>
     public void ConnectNodeNodeNeighbours()
     {
         for (int i = 0; i < nodeList.Count; i++)                // 一层循环
@@ -112,16 +117,18 @@ public class Graph
                 // 六方向检查
                 for (int k = 0; k < m_SixDirs.Count; k++)
                 {
-                    m_CacheRay.origin = nodeList[i].octreeNode.bounds.center;
+                    var nodeI = nodeList[i];
+                    var nodeJ = nodeList[j];
+                    m_CacheRay.origin = nodeI.octreeNode.bounds.center;
                     m_CacheRay.direction = m_SixDirs[k];
-                    float maxLength = nodeList[i].octreeNode.bounds.size.x / 2.0f + 0.01f;
-                    // 单次最多是24个
-                    if (nodeList[j].octreeNode.bounds.IntersectRay(m_CacheRay, out float hitLength))
+                    float maxLength = nodeI.octreeNode.bounds.size.x / 2.0f + 0.01f;
+                    // 检查是否跟这个射线有交叉
+                    if (nodeJ.octreeNode.bounds.IntersectRay(m_CacheRay, out float hitLength))
                     {
                         // 仅连接相邻邻居（最短）
                         if (hitLength <= maxLength)
                         {
-                            AddEdge(nodeList[i].octreeNode, nodeList[j].octreeNode);
+                            AddEdge(nodeI.octreeNode, nodeJ.octreeNode);
                         }
                     }
                 }
@@ -129,10 +136,17 @@ public class Graph
         }
     }
 
-    public bool AStar(OctreeNode startNode, OctreeNode endNode, ref List<Node> pathList)
+    /// <summary>
+    /// A*寻路
+    /// </summary>
+    /// <param name="startNode"></param>
+    /// <param name="endNode"></param>
+    /// <param name="pathList"></param>
+    /// <returns></returns>
+    public bool AStar(OctreeNode startNode, OctreeNode endNode, ref List<GraphNode> pathList)
     {
-        Node start = FindNode(startNode.id);
-        Node end = FindNode(endNode.id);
+        GraphNode start = FindNode(startNode.id);
+        GraphNode end = FindNode(endNode.id);
 
         if (start == null || end == null)
         {
@@ -147,8 +161,10 @@ public class Graph
             return true;
         }
 
-        List<Node> openList = new();            // open
-        List<Node> closeList = new();           // close（记录的是走过的路径）
+        // HashSet<GraphNode> openHasSet = new ();
+        // HashSet<GraphNode> closedHasSet = new ();
+        List<GraphNode> openList = new();            // open（记录即将要走的路径）
+        List<GraphNode> closeList = new();           // close（记录的是走过的路径）
 
         // 代价计算
         start.g = 0;
@@ -158,7 +174,7 @@ public class Graph
         while (openList.Count > 0)
         {
             int thisI = GetLowestFIndex(openList);
-            Node thisN = openList[thisI];
+            GraphNode thisN = openList[thisI];
             
             // 到达终点则结束
             if (thisN.octreeNode.id == endNode.id)
@@ -171,11 +187,12 @@ public class Graph
             openList.RemoveAt(thisI);         // 待考察的节点
             closeList.Add(thisN);             // 已经考察过的节点
             
-            foreach (Edge edge in thisN.edgeList)
+            // 查找附近所有临近点
+            foreach (GraphEdge edge in thisN.edgeList)
             {
-                Node edgeEndNode = edge.endNode;
+                GraphNode edgeEndGraphNode = edge.EndGraphNode;
 
-                if (closeList.IndexOf(edgeEndNode) > -1)
+                if (closeList.IndexOf(edgeEndGraphNode) > -1)
                 {
                     continue; 
                 }
@@ -183,18 +200,18 @@ public class Graph
                 bool updateNode = false;
                 float newG = thisN.g + Vector3.SqrMagnitude
                 (
-                    edgeEndNode.octreeNode.bounds.center -
+                    edgeEndGraphNode.octreeNode.bounds.center -
                     thisN.octreeNode.bounds.center
                 );
 
                 // 首次被发现
-                if (openList.IndexOf(edgeEndNode) <= -1)
+                if (openList.IndexOf(edgeEndGraphNode) <= -1)
                 {
-                    openList.Add(edgeEndNode);
+                    openList.Add(edgeEndGraphNode);
                     updateNode = true;
                 }
                 // 有更近的入口点
-                else if (newG <= edgeEndNode.g)
+                else if (newG <= edgeEndGraphNode.g)
                 {
                     updateNode = true;
                 }
@@ -202,11 +219,11 @@ public class Graph
                 // 数据更新
                 if (updateNode)
                 {
-                    edgeEndNode.cameFrom = thisN;                // 更新来源点
-                    edgeEndNode.g = newG;                        // 已消耗代价更新
-                    edgeEndNode.h = Vector3.SqrMagnitude(        // 启发代价更新
+                    edgeEndGraphNode.cameFrom = thisN;                // 更新来源点
+                    edgeEndGraphNode.g = newG;                        // 已消耗代价更新
+                    edgeEndGraphNode.h = Vector3.SqrMagnitude(        // 启发代价更新
                         endNode.bounds.center -
-                        edgeEndNode.octreeNode.bounds.center
+                        edgeEndGraphNode.octreeNode.bounds.center
                     );
                 }
             }
@@ -216,9 +233,9 @@ public class Graph
     }
 
     /// <summary>
-    /// 找到最低f的节点
+    /// 找到最低总代价（f）的节点
     /// </summary>
-    private int GetLowestFIndex(List<Node> openList)
+    private int GetLowestFIndex(List<GraphNode> openList)
     {
         float lowestF = -9999;
         int lowestIndex = 0;
@@ -237,18 +254,18 @@ public class Graph
     /// <summary>
     ///  路径回溯
     /// </summary>
-    private void ReconstructPath(Node startNode, Node endNode, ref List<Node> pathList)
+    private void ReconstructPath(GraphNode startGraphNode, GraphNode endGraphNode, ref List<GraphNode> pathList)
     {
         pathList.Clear();
-        pathList.Add(endNode);
+        pathList.Add(endGraphNode);
 
-        var from = endNode.cameFrom;
-        while (from != null && from != startNode)
+        var from = endGraphNode.cameFrom;
+        while (from != null && from != startGraphNode)
         {
             pathList.Insert(0, from);          // 添加到数列首部
             from = from.cameFrom;
         }
 
-        pathList.Insert(0, startNode);
+        pathList.Insert(0, startGraphNode);
     }
 }
